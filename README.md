@@ -4,8 +4,8 @@ Herramienta con interfaz gráfica en Python diseñada para buscar, leer y visual
 
 ## Características Principales
 
-- **Selección y Escaneo Dinámico:** Elige una carpeta y el programa detectará automáticamente los archivos Excel, buscando columnas de Intensidad (I) y Voltaje (V). Con un botón para actualizar al instante si añades nuevos archivos.
-- **Detección de Unidades y Conversión:** Detecta de forma inteligente las unidades indicadas entre paréntesis (ej. `(mV)`, `(μA)`) en las cabeceras de Excel y realiza las conversiones pertinentes a la unidad que prefieras visualizar en la gráfica. (Soporta `A, mA, uA, μA, nA, pA` y `V, mV, uV, μV`).
+- **Selección y Escaneo Dinámico:** Elige una carpeta y el programa detectará automáticamente los archivos Excel. Escanea dinámicamente las primeras 50 filas de cada archivo para localizar la cabecera real (tolerando títulos, filas vacías o metadatos iniciales) y localiza las columnas de Intensidad (I) y Voltaje (V). Cuenta con un botón para actualizar al instante si añades nuevos archivos.
+- **Detección de Unidades y Conversión:** Detecta de forma inteligente las unidades indicadas entre paréntesis (ej. `(mV)`, `(μA)`) en las cabeceras de Excel y realiza las conversiones pertinentes a la unidad que prefieras visualizar en la gráfica (soporta `A, mA, uA, μA, nA, pA` y `V, mV, uV, μV`). Además, los datos se convierten a formato numérico de forma limpia; cualquier celda con comentarios, notas al final del ensayo o celdas vacías es ignorada automáticamente.
 - **Personalización del Gráfico:** 
   - Ajuste de los límites del gráfico y reinicio automático.
   - Inversión de ejes (ascendente/descendente).
@@ -35,4 +35,4 @@ pip install -r requirements.txt
 ```bash
 python main.py
 ```
-3. Generador de Pruebas: Dispones de un script `test_data_generator.py` que genera automáticamente 5 archivos Excel diferentes en la carpeta `./datos` para probar la herramienta en distintas situaciones (múltiples columnas, ausencia de datos, conversiones, etc).
+3. Generador de Pruebas: Dispones de un script `test_data_generator.py` que genera automáticamente 6 archivos Excel diferentes en la carpeta `./datos` para probar la herramienta en distintas situaciones (múltiples columnas, ausencia de datos, conversiones, y archivos con formatos "raros" que contienen metadatos y comentarios).

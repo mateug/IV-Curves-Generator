@@ -212,13 +212,47 @@ class IVCurveApp:
         for file in files:
             path = os.path.join(folder, file)
             try:
-                # Solo leemos la cabecera para ver las columnas
-                df = pd.read_excel(path, nrows=0)
-                cols = list(df.columns)
+                # Intentar buscar la cabecera dinámicamente en las primeras 50 filas
+                df_preview = pd.read_excel(path, header=None, nrows=50)
                 
-                # Buscar columnas I y V
-                i_cols = [c for c in cols if 'I' in c.upper() or 'INTENSIDAD' in c.upper() or 'CURRENT' in c.upper()]
-                v_cols = [c for c in cols if 'V' in c.upper() or 'VOLTAJE' in c.upper() or 'VOLTAGE' in c.upper()]
+                header_row = None
+                i_cols_idx = []
+                v_cols_idx = []
+                
+                for idx, row in df_preview.iterrows():
+                    row_str = [str(x).strip().upper() if pd.notna(x) else "" for x in row]
+                    
+                    curr_i = []
+                    curr_v = []
+                    for col_idx, val in enumerate(row_str):
+                        # Criterio de búsqueda para I:
+                        is_i = False
+                        if val in ["I", "INTENSIDAD", "CURRENT"]:
+                            is_i = True
+                        elif "I (" in val or "INTENSIDAD (" in val or "CURRENT (" in val:
+                            is_i = True
+                        elif val.startswith("I_") or val.startswith("CURRENT_"):
+                            is_i = True
+                        
+                        # Criterio de búsqueda para V:
+                        is_v = False
+                        if val in ["V", "VOLTAJE", "VOLTAGE"]:
+                            is_v = True
+                        elif "V (" in val or "VOLTAJE (" in val or "VOLTAGE (" in val:
+                            is_v = True
+                        elif val.startswith("V_") or val.startswith("VOLTAGE_"):
+                            is_v = True
+                            
+                        if is_i:
+                            curr_i.append(col_idx)
+                        if is_v:
+                            curr_v.append(col_idx)
+                            
+                    if curr_i and curr_v:
+                        header_row = idx
+                        i_cols_idx = curr_i
+                        v_cols_idx = curr_v
+                        break
                 
                 status = "✅"
                 i_unit = "-"
@@ -226,22 +260,27 @@ class IVCurveApp:
                 i_col_name = None
                 v_col_name = None
                 
-                if not i_cols or not v_cols:
+                if header_row is None:
                     status = "❌"
                     invalid_count += 1
                 else:
-                    if len(i_cols) > 1 or len(v_cols) > 1:
+                    # Recuperar nombres reales de las columnas en la fila detectada
+                    row_raw = list(df_preview.iloc[header_row])
+                    i_col_name = row_raw[i_cols_idx[0]]
+                    v_col_name = row_raw[v_cols_idx[0]]
+                    
+                    if len(i_cols_idx) > 1 or len(v_cols_idx) > 1:
                         status = "⚠️"
-                    i_col_name = i_cols[0]
-                    v_col_name = v_cols[0]
-                    i_unit = self.get_unit_from_str(i_col_name, "I")
-                    v_unit = self.get_unit_from_str(v_col_name, "V")
+                    
+                    i_unit = self.get_unit_from_str(str(i_col_name), "I")
+                    v_unit = self.get_unit_from_str(str(v_col_name), "V")
                     valid_count += 1
                 
                 self.excel_data.append({
                     "filename": file,
                     "path": path,
                     "status": status,
+                    "header_row": header_row,
                     "i_col": i_col_name,
                     "v_col": v_col_name,
                     "i_unit": i_unit,
@@ -291,7 +330,7 @@ class IVCurveApp:
         for data in self.excel_data:
             if data["status"] in ["✅", "⚠️"]:
                 try:
-                    df = pd.read_excel(data["path"])
+                    df = pd.read_excel(data["path"], header=data["header_row"])
                     # Convertimos al factor base (A o V) y luego a la unidad destino
                     base_i_factor = UNIT_FACTORS["I"].get(data["i_unit"], 1.0)
                     base_v_factor = UNIT_FACTORS["V"].get(data["v_unit"], 1.0)
@@ -303,8 +342,8 @@ class IVCurveApp:
                     mult_i = base_i_factor / target_i_factor
                     mult_v = base_v_factor / target_v_factor
                     
-                    i_vals = df[data["i_col"]].dropna() * mult_i
-                    v_vals = df[data["v_col"]].dropna() * mult_v
+                    i_vals = pd.to_numeric(df[data["i_col"]], errors='coerce').dropna() * mult_i
+                    v_vals = pd.to_numeric(df[data["v_col"]], errors='coerce').dropna() * mult_v
                     
                     # Asegurarnos de que tengan la misma longitud
                     min_len = min(len(i_vals), len(v_vals))
