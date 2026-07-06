@@ -31,7 +31,7 @@ class IVCurveApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Generador de Curvas IV")
-        self.root.geometry("1200x800")
+        self.root.geometry("1400x900")
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         self.current_folder = os.path.abspath("datos")
@@ -46,6 +46,10 @@ class IVCurveApp:
         self.toolbar = None
         self.annot = None
         self.hover_cid = None
+        # Flags para control de generación bajo demanda
+        self.needs_regen = False
+        self.graph_generated_iv = False
+        self.graph_generated_isc = False
         
         self.setup_ui()
         self.scan_folder(self.current_folder)
@@ -101,13 +105,13 @@ class IVCurveApp:
         self.cb_unit_i = ttk.Combobox(units_frame, values=list(UNIT_FACTORS["I"].keys()), width=5, state="readonly")
         self.cb_unit_i.set(self.default_i_unit)
         self.cb_unit_i.grid(row=0, column=1, padx=5, pady=5)
-        self.cb_unit_i.bind("<<ComboboxSelected>>", lambda e: self.generate_plot())
+        self.cb_unit_i.bind("<<ComboboxSelected>>", lambda e: setattr(self, 'needs_regen', True))
         
         ttk.Label(units_frame, text="Voltaje:").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
         self.cb_unit_v = ttk.Combobox(units_frame, values=list(UNIT_FACTORS["V"].keys()), width=5, state="readonly")
         self.cb_unit_v.set(self.default_v_unit)
         self.cb_unit_v.grid(row=1, column=1, padx=5, pady=5)
-        self.cb_unit_v.bind("<<ComboboxSelected>>", lambda e: self.generate_plot())
+        self.cb_unit_v.bind("<<ComboboxSelected>>", lambda e: setattr(self, 'needs_regen', True))
         
         # Botón Generar
         self.btn_generate = ttk.Button(left_panel, text="Generar Gráfico IV", command=self.generate_plot, state=tk.DISABLED)
@@ -118,13 +122,18 @@ class IVCurveApp:
         right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         
         # Canvas de matplotlib
-        self.canvas_frame = ttk.Frame(right_panel)
-        self.canvas_frame.pack(fill=tk.BOTH, expand=True)
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self.canvas_frame)
+        self.notebook = ttk.Notebook(right_panel)
+        self.iv_tab = ttk.Frame(self.notebook)
+        self.isc_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.iv_tab, text="IV")
+        self.notebook.add(self.isc_tab, text="Isc")
+        self.notebook.pack(fill=tk.BOTH, expand=True)
+
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.iv_tab)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-        
-        self.toolbar = NavigationToolbar2Tk(self.canvas, self.canvas_frame)
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.iv_tab)
         self.toolbar.update()
+        self.notebook.bind("<<NotebookTabChanged>>", lambda e: self.on_tab_change())
         
         # Controles de Gráfico (Limites y ejes)
         plot_ctrl_frame = ttk.LabelFrame(right_panel, text="Controles del Gráfico (Tras generar)")
@@ -156,7 +165,7 @@ class IVCurveApp:
         
         # Checkboxes Ejes
         self.var_swap_axes = tk.BooleanVar(value=False)
-        cb_swap = ttk.Checkbutton(plot_ctrl_frame, text="Intercambiar X/Y", variable=self.var_swap_axes, command=self.generate_plot)
+        cb_swap = ttk.Checkbutton(plot_ctrl_frame, text="Intercambiar X/Y", variable=self.var_swap_axes, command=lambda: setattr(self, 'needs_regen', True))
         cb_swap.grid(row=0, column=6, padx=10)
         
         self.var_invert_x = tk.BooleanVar(value=False)
@@ -172,7 +181,7 @@ class IVCurveApp:
         self.cb_line_style = ttk.Combobox(plot_ctrl_frame, values=["Línea continua (-)", "Línea rayada (--)", "Puntos (.)", "Puntos y línea (.-)"], width=15, state="readonly")
         self.cb_line_style.set("Línea continua (-)")
         self.cb_line_style.grid(row=0, column=8, padx=5, sticky=tk.W)
-        self.cb_line_style.bind("<<ComboboxSelected>>", lambda e: self.generate_plot())
+        self.cb_line_style.bind("<<ComboboxSelected>>", lambda e: setattr(self, 'needs_regen', True))
         
         # Exportar
         export_frame = ttk.Frame(plot_ctrl_frame)
@@ -182,9 +191,6 @@ class IVCurveApp:
         btn_export_excel = ttk.Button(export_frame, text="Exportar Excel combinado", command=self.export_combined_excel)
         btn_export_excel.pack(side=tk.LEFT, padx=(10, 0))
         self.btn_export_excel = btn_export_excel
-        btn_generate_isc = ttk.Button(export_frame, text="Generar Gráfico Isc", command=self.generate_isc_plot)
-        btn_generate_isc.pack(side=tk.LEFT, padx=(10, 0))
-        self.btn_generate_isc = btn_generate_isc
 
     def browse_folder(self):
         folder = filedialog.askdirectory(initialdir=self.current_folder)
@@ -314,13 +320,28 @@ class IVCurveApp:
         if valid_count > 0:
             self.btn_generate.config(state=tk.NORMAL)
             self.btn_export_excel.config(state=tk.NORMAL)
-            self.btn_generate_isc.config(state=tk.NORMAL)
         else:
             self.btn_generate.config(state=tk.DISABLED)
             self.btn_export_excel.config(state=tk.DISABLED)
-            self.btn_generate_isc.config(state=tk.DISABLED)
 
     def generate_plot(self):
+        # Generar IV (y preparar Isc) sólo cuando se pulsa el botón
+        self.needs_regen = False
+        self.graph_generated_iv = True
+
+        # Construir combinados para uso posterior (Isc)
+        try:
+            self.last_combined_iv = self.build_combined_iv()
+        except Exception:
+            self.last_combined_iv = pd.DataFrame()
+        try:
+            self.last_combined_summary = self.build_combined_summary()
+        except Exception:
+            self.last_combined_summary = pd.DataFrame()
+
+        # Marcar que Isc está disponible si hay resumen
+        self.graph_generated_isc = not self.last_combined_summary.empty
+
         self.ax.clear()
         if self.hover_cid:
             self.canvas.mpl_disconnect(self.hover_cid)
@@ -420,6 +441,8 @@ class IVCurveApp:
         self.entry_ymax.delete(0, tk.END)
         
         self.canvas.draw()
+
+        # flags ya actualizados al inicio
         
     def update_axes_direction(self):
         if not self.ax.lines:
@@ -470,18 +493,21 @@ class IVCurveApp:
             messagebox.showerror("Error", "Los límites deben ser valores numéricos.")
 
     def reset_limits(self):
-        if not self.ax.lines:
-            return
-        self.ax.relim()
-        self.ax.autoscale_view()
-        self.update_axes_direction()
-        
+        # Reinicia límites y regenera sólo si el gráfico correspondiente ya fue generado
+        current = self.notebook.tab(self.notebook.select(), "text") if hasattr(self, 'notebook') else 'IV'
+        if current == 'IV' and self.graph_generated_iv:
+            self.generate_plot()
+        elif current == 'Isc' and self.graph_generated_isc:
+            self.generate_isc_plot()
+        else:
+            self.ax.clear()
+            self.ax.set_title('Pulse "Generar Gráfico IV" para generar los gráficos')
+            self.canvas.draw()
+
         self.entry_xmin.delete(0, tk.END)
         self.entry_xmax.delete(0, tk.END)
         self.entry_ymin.delete(0, tk.END)
         self.entry_ymax.delete(0, tk.END)
-        
-        self.canvas.draw()
 
     def get_clean_column_name(self, col_name):
         if not isinstance(col_name, str):
@@ -622,37 +648,158 @@ class IVCurveApp:
 
         try:
             with pd.ExcelWriter(save_path, engine='openpyxl') as writer:
-                combined_iv.to_excel(writer, sheet_name='datos_IV', index=False)
+                # Si las columnas son MultiIndex (top_headers/bottom_headers), aplanarlas para Excel
+                df_to_write = combined_iv.copy()
+                if isinstance(df_to_write.columns, pd.MultiIndex):
+                    new_cols = []
+                    for a, b in df_to_write.columns:
+                        a_str = str(a)
+                        b_str = str(b)
+                        # Nombre legible: Archivo_Tipo (ej. datos.xlsx_V)
+                        new_cols.append(f"{a_str}_{b_str}")
+                    df_to_write.columns = new_cols
+                df_to_write.to_excel(writer, sheet_name='datos_IV', index=False)
                 if not combined_summary.empty:
                     combined_summary[['Fecha y hora inicio', 'Isc']].to_excel(writer, sheet_name='resumen', index=False)
             messagebox.showinfo('Éxito', f'Archivo exportado a:\n{save_path}')
         except Exception as e:
             messagebox.showerror('Error', f'No se pudo exportar el archivo:\n{e}')
 
+    def export_plot(self):
+        # Exporta el gráfico correspondiente a la pestaña activa con nombre por defecto
+        current = self.notebook.tab(self.notebook.select(), "text") if hasattr(self, 'notebook') else 'IV'
+        default_name = 'grafico_iv.png' if current == 'IV' else 'grafico_isc.png'
+
+        if current == 'IV' and not self.graph_generated_iv:
+            messagebox.showwarning('Advertencia', 'No hay gráfico IV generado para exportar.')
+            return
+        if current == 'Isc' and not self.graph_generated_isc:
+            messagebox.showwarning('Advertencia', 'No hay gráfico Isc generado para exportar.')
+            return
+
+        folder = self.current_folder
+        save_path = filedialog.asksaveasfilename(
+            initialdir=folder,
+            initialfile=default_name,
+            defaultextension='.png',
+            filetypes=[('PNG Image', '*.png'), ('PDF', '*.pdf'), ('All Files', '*.*')]
+        )
+        if not save_path:
+            return
+        try:
+            # Asegurar que el contenido de la figura corresponde a la pestaña
+            if current == 'Isc':
+                # regenerar la gráfica Isc en los ejes actuales
+                self.generate_isc_plot()
+            else:
+                self.generate_plot()
+            self.fig.savefig(save_path, dpi=300, bbox_inches='tight')
+            messagebox.showinfo('Éxito', f'Gráfico exportado a:\n{save_path}')
+        except Exception as e:
+            messagebox.showerror('Error', f'No se pudo exportar el gráfico:\n{e}')
+
+    def on_tab_change(self):
+        # Recrea el canvas en la pestaña activa y dibuja el gráfico correspondiente
+        selected = self.notebook.tab(self.notebook.select(), "text")
+        parent = self.iv_tab if selected == 'IV' else self.isc_tab
+
+        # destruir toolbar y canvas actuales y recrearlos bajo el nuevo padre
+        try:
+            self.toolbar.destroy()
+        except Exception:
+            pass
+        try:
+            self.canvas.get_tk_widget().pack_forget()
+        except Exception:
+            pass
+
+        self.canvas = FigureCanvasTkAgg(self.fig, master=parent)
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        self.toolbar = NavigationToolbar2Tk(self.canvas, parent)
+        self.toolbar.update()
+
+        # Mostrar gráfico sólo si fue generado con el botón
+        if selected == 'IV':
+            if self.graph_generated_iv:
+                self.generate_plot()
+            else:
+                self.ax.clear()
+                self.ax.set_title('Pulse "Generar Gráfico IV" para generar los gráficos')
+                self.canvas.draw()
+        else:
+            if self.graph_generated_isc:
+                self.generate_isc_plot()
+            else:
+                self.ax.clear()
+                self.ax.set_title('Pulse "Generar Gráfico IV" para generar los gráficos')
+                self.canvas.draw()
+
     def generate_isc_plot(self):
-        combined_summary = self.build_combined_summary()
-        if combined_summary.empty:
+        # Dibujar Isc usando los datos preparados por generate_plot (last_combined_summary)
+        combined_summary = getattr(self, 'last_combined_summary', None)
+        if combined_summary is None or combined_summary.empty:
             messagebox.showwarning('Advertencia', 'No hay datos de resumen para generar la gráfica de Isc.')
             return
 
+        # Marcar que Isc fue generado
+        self.graph_generated_isc = True
+
         self.ax.clear()
-        if self.hover_cid:
-            self.canvas.mpl_disconnect(self.hover_cid)
+        # desconectar handler previo
+        if getattr(self, 'hover_cid', None):
+            try:
+                self.canvas.mpl_disconnect(self.hover_cid)
+            except Exception:
+                pass
             self.hover_cid = None
 
         combined_summary['Fecha y hora inicio'] = pd.to_datetime(combined_summary['Fecha y hora inicio'], errors='coerce')
         combined_summary = combined_summary.dropna(subset=['Fecha y hora inicio', 'Isc'])
 
+        lines = []
+        labels = []
+        xdata_lists = []
+        xnum_lists = []
+        ydata_lists = []
         for filename, group in combined_summary.groupby('Archivo'):
-            self.ax.plot(group['Fecha y hora inicio'], group['Isc'], marker='o', label=filename)
+            # Parsear fechas con tolerancia a distintos formatos (dayfirst para dd.mm.yyyy)
+            series_dt = pd.to_datetime(group['Fecha y hora inicio'], dayfirst=True, errors='coerce')
+            series_y = pd.to_numeric(group['Isc'], errors='coerce')
+            mask = series_dt.notna() & series_y.notna()
+            if not mask.any():
+                continue
+            series_dt = series_dt[mask]
+            series_y = series_y[mask]
+            # convertir a objetos datetime de Python
+            xd_dt = series_dt.dt.to_pydatetime()
+            yd = series_y.to_numpy(dtype=float)
+            # Plot usando datetime objects (matplotlib maneja bien)
+            line, = self.ax.plot(xd_dt, yd, marker='o', linestyle='-', label=filename)
+            lines.append(line)
+            labels.append(filename)
+            xdata_lists.append(xd_dt)
+            # también almacenar los valores numéricos de matplotlib para el tooltip
+            xnum_lists.append(mdates.date2num(xd_dt))
+            ydata_lists.append(yd)
 
         self.ax.set_xlabel('Fecha y hora inicio')
         self.ax.set_ylabel('Isc')
         self.ax.set_title('Isc en función del tiempo')
         self.ax.grid(True)
-        self.ax.legend()
+        # sin leyenda
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M:%S'))
         self.fig.autofmt_xdate(rotation=30)
+
+        # Desconectar cualquier handler de tooltip previo y mostrar leyenda simple
+        if getattr(self, 'hover_cid', None):
+            try:
+                self.canvas.mpl_disconnect(self.hover_cid)
+            except Exception:
+                pass
+            self.hover_cid = None
+
+        # Mostrar leyenda simple en la gráfica Isc
+        self.ax.legend()
         self.canvas.draw()
 
     def on_closing(self):
