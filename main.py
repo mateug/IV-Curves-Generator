@@ -1,8 +1,10 @@
 import os
 import re
+import numpy as np
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
 import pandas as pd
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
@@ -34,6 +36,7 @@ class IVCurveApp:
         
         self.current_folder = os.path.abspath("datos")
         self.excel_data = [] # Lista de dicts con info de cada excel
+        self.summary_data = None
         
         self.default_i_unit = "μA"
         self.default_v_unit = "V"
@@ -175,7 +178,13 @@ class IVCurveApp:
         export_frame = ttk.Frame(plot_ctrl_frame)
         export_frame.grid(row=1, column=7, columnspan=2, rowspan=2, padx=20)
         btn_export = ttk.Button(export_frame, text="Exportar Gráfico", command=self.export_plot)
-        btn_export.pack()
+        btn_export.pack(side=tk.LEFT)
+        btn_export_excel = ttk.Button(export_frame, text="Exportar Excel combinado", command=self.export_combined_excel)
+        btn_export_excel.pack(side=tk.LEFT, padx=(10, 0))
+        self.btn_export_excel = btn_export_excel
+        btn_generate_isc = ttk.Button(export_frame, text="Generar Gráfico Isc", command=self.generate_isc_plot)
+        btn_generate_isc.pack(side=tk.LEFT, padx=(10, 0))
+        self.btn_generate_isc = btn_generate_isc
 
     def browse_folder(self):
         folder = filedialog.askdirectory(initialdir=self.current_folder)
@@ -209,15 +218,17 @@ class IVCurveApp:
         valid_count = 0
         invalid_count = 0
         
+        self.summary_data = []
         for file in files:
             path = os.path.join(folder, file)
             try:
-                # Intentar buscar la cabecera dinámicamente en las primeras 50 filas
-                df_preview = pd.read_excel(path, header=None, nrows=50)
+                # Intentar buscar la cabecera dinámicamente en las primeras 50 filas de la hoja datos_IV
+                df_preview = pd.read_excel(path, sheet_name="datos_IV", header=None, nrows=50)
                 
                 header_row = None
                 i_cols_idx = []
                 v_cols_idx = []
+                summary_df = None
                 
                 for idx, row in df_preview.iterrows():
                     row_str = [str(x).strip().upper() if pd.notna(x) else "" for x in row]
@@ -275,6 +286,7 @@ class IVCurveApp:
                     i_unit = self.get_unit_from_str(str(i_col_name), "I")
                     v_unit = self.get_unit_from_str(str(v_col_name), "V")
                     valid_count += 1
+                    summary_df = self.read_summary_sheet(path)
                 
                 self.excel_data.append({
                     "filename": file,
@@ -284,8 +296,11 @@ class IVCurveApp:
                     "i_col": i_col_name,
                     "v_col": v_col_name,
                     "i_unit": i_unit,
-                    "v_unit": v_unit
+                    "v_unit": v_unit,
+                    "summary_df": summary_df
                 })
+                if status in ["✅", "⚠️"] and summary_df is not None:
+                    self.summary_data.append({"filename": file, "data": summary_df})
                 
                 self.tree.insert("", "end", values=(status, file, i_unit, v_unit))
                 
@@ -298,8 +313,12 @@ class IVCurveApp:
         
         if valid_count > 0:
             self.btn_generate.config(state=tk.NORMAL)
+            self.btn_export_excel.config(state=tk.NORMAL)
+            self.btn_generate_isc.config(state=tk.NORMAL)
         else:
             self.btn_generate.config(state=tk.DISABLED)
+            self.btn_export_excel.config(state=tk.DISABLED)
+            self.btn_generate_isc.config(state=tk.DISABLED)
 
     def generate_plot(self):
         self.ax.clear()
@@ -330,7 +349,7 @@ class IVCurveApp:
         for data in self.excel_data:
             if data["status"] in ["✅", "⚠️"]:
                 try:
-                    df = pd.read_excel(data["path"], header=data["header_row"])
+                    df = pd.read_excel(data["path"], sheet_name="datos_IV", header=data["header_row"])
                     # Convertimos al factor base (A o V) y luego a la unidad destino
                     base_i_factor = UNIT_FACTORS["I"].get(data["i_unit"], 1.0)
                     base_v_factor = UNIT_FACTORS["V"].get(data["v_unit"], 1.0)
@@ -353,6 +372,7 @@ class IVCurveApp:
                     x_vals = v_vals if not swap else i_vals
                     y_vals = i_vals if not swap else v_vals
                     
+                    df = pd.read_excel(data["path"], sheet_name="datos_IV", header=data["header_row"])
                     line, = self.ax.plot(x_vals, y_vals, fmt, label=data["filename"])
                     lines.append(line)
                     
@@ -463,39 +483,177 @@ class IVCurveApp:
         
         self.canvas.draw()
 
-    def export_plot(self):
-        if not self.ax.lines:
-            messagebox.showwarning("Advertencia", "No hay ningún gráfico para exportar.")
+    def get_clean_column_name(self, col_name):
+        if not isinstance(col_name, str):
+            return str(col_name)
+        return ''.join(c for c in col_name.lower() if c.isalnum())
+
+    def read_summary_sheet(self, path):
+        try:
+            df = pd.read_excel(path, sheet_name="resumen")
+        except Exception:
+            return None
+
+        def clean(s):
+            if not isinstance(s, str):
+                return ''
+            return ''.join(ch for ch in s.lower() if ch.isalnum())
+
+        fecha_col = None
+        isc_col = None
+        for col in df.columns:
+            col_clean = clean(col)
+            if 'fecha' in col_clean and 'inicio' in col_clean:
+                fecha_col = col
+            if col_clean == 'isc' or 'isc' in col_clean:
+                isc_col = col
+
+        if fecha_col is None or isc_col is None:
+            return None
+
+        result = pd.DataFrame({
+            'Fecha y hora inicio': pd.to_datetime(df[fecha_col], errors='coerce'),
+            'Isc': pd.to_numeric(df[isc_col], errors='coerce')
+        })
+        return result.dropna(subset=['Fecha y hora inicio', 'Isc'])
+
+    def same_voltage_series(self, s1, s2):
+        if len(s1) != len(s2):
+            return False
+        s1_arr = np.asarray(s1, dtype=float)
+        s2_arr = np.asarray(s2, dtype=float)
+        return np.allclose(s1_arr, s2_arr, atol=1e-9, rtol=1e-6)
+
+    def build_combined_iv(self):
+        combined_columns = []
+        top_headers = []
+        bottom_headers = []
+        data_dict = {}
+
+        unique_voltages = []
+        voltage_keys = []
+
+        for item in self.excel_data:
+            if item['status'] not in ['✅', '⚠️']:
+                continue
+            try:
+                df = pd.read_excel(item['path'], sheet_name='datos_IV', header=item['header_row'])
+                v_values = pd.to_numeric(df[item['v_col']], errors='coerce').dropna().reset_index(drop=True)
+                i_values = pd.to_numeric(df[item['i_col']], errors='coerce').dropna().reset_index(drop=True)
+                length = min(len(v_values), len(i_values))
+                v_values = v_values.iloc[:length]
+                i_values = i_values.iloc[:length]
+            except Exception:
+                continue
+
+            matched_index = None
+            for idx, existing_v in enumerate(unique_voltages):
+                if self.same_voltage_series(existing_v, v_values):
+                    matched_index = idx
+                    break
+
+            if matched_index is None:
+                unique_voltages.append(v_values)
+                key = f'V_{len(unique_voltages)}'
+                voltage_keys.append(key)
+                combined_columns.append(key)
+                top_headers.append(item['filename'])
+                bottom_headers.append('V')
+                data_dict[key] = v_values
+
+                key_i = f'I_{len(unique_voltages)}_{item["filename"]}'
+                combined_columns.append(key_i)
+                top_headers.append(item['filename'])
+                bottom_headers.append('I')
+                data_dict[key_i] = i_values
+            else:
+                key_i = f'I_{matched_index + 1}_{item["filename"]}'
+                combined_columns.append(key_i)
+                top_headers.append(item['filename'])
+                bottom_headers.append('I')
+                data_dict[key_i] = i_values
+
+        max_len = max((len(col) for col in data_dict.values()), default=0)
+        for key, series in data_dict.items():
+            if len(series) < max_len:
+                data_dict[key] = series.reindex(range(max_len))
+
+        if not combined_columns:
+            return pd.DataFrame()
+
+        df_combined = pd.DataFrame({key: data_dict[key] for key in combined_columns})
+        df_combined.columns = pd.MultiIndex.from_arrays([top_headers, bottom_headers])
+        return df_combined
+
+    def build_combined_summary(self):
+        rows = []
+        for item in self.excel_data:
+            if item['status'] not in ['✅', '⚠️']:
+                continue
+            summary_df = item.get('summary_df')
+            if summary_df is None or summary_df.empty:
+                continue
+            temp = summary_df.copy()
+            temp['Archivo'] = item['filename']
+            rows.append(temp)
+
+        if not rows:
+            return pd.DataFrame(columns=['Archivo', 'Fecha y hora inicio', 'Isc'])
+
+        return pd.concat(rows, ignore_index=True)
+
+    def export_combined_excel(self):
+        combined_iv = self.build_combined_iv()
+        combined_summary = self.build_combined_summary()
+
+        if combined_iv.empty:
+            messagebox.showwarning('Advertencia', 'No hay datos IV combinados para exportar.')
             return
-            
-        base_name = "curvas_iv"
-        ext = ".png"
+
         folder = self.current_folder
-        
-        # Buscar nombre disponible
-        counter = 1
-        filename = f"{base_name}{ext}"
-        filepath = os.path.join(folder, filename)
-        
-        while os.path.exists(filepath):
-            counter += 1
-            filename = f"{base_name}_{counter}{ext}"
-            filepath = os.path.join(folder, filename)
-            
-        # Permitir al usuario cambiarlo
         save_path = filedialog.asksaveasfilename(
             initialdir=folder,
-            initialfile=filename,
-            defaultextension=".png",
-            filetypes=[("PNG Image", "*.png"), ("PDF Document", "*.pdf"), ("SVG Image", "*.svg"), ("All Files", "*.*")]
+            initialfile='iv_combinado.xlsx',
+            defaultextension='.xlsx',
+            filetypes=[('Excel Workbook', '*.xlsx'), ('All Files', '*.*')]
         )
-        
-        if save_path:
-            try:
-                self.fig.savefig(save_path, bbox_inches='tight')
-                messagebox.showinfo("Éxito", f"Gráfico guardado en:\n{save_path}")
-            except Exception as e:
-                messagebox.showerror("Error", f"No se pudo guardar el gráfico:\n{e}")
+        if not save_path:
+            return
+
+        try:
+            with pd.ExcelWriter(save_path, engine='openpyxl') as writer:
+                combined_iv.to_excel(writer, sheet_name='datos_IV', index=False)
+                if not combined_summary.empty:
+                    combined_summary[['Fecha y hora inicio', 'Isc']].to_excel(writer, sheet_name='resumen', index=False)
+            messagebox.showinfo('Éxito', f'Archivo exportado a:\n{save_path}')
+        except Exception as e:
+            messagebox.showerror('Error', f'No se pudo exportar el archivo:\n{e}')
+
+    def generate_isc_plot(self):
+        combined_summary = self.build_combined_summary()
+        if combined_summary.empty:
+            messagebox.showwarning('Advertencia', 'No hay datos de resumen para generar la gráfica de Isc.')
+            return
+
+        self.ax.clear()
+        if self.hover_cid:
+            self.canvas.mpl_disconnect(self.hover_cid)
+            self.hover_cid = None
+
+        combined_summary['Fecha y hora inicio'] = pd.to_datetime(combined_summary['Fecha y hora inicio'], errors='coerce')
+        combined_summary = combined_summary.dropna(subset=['Fecha y hora inicio', 'Isc'])
+
+        for filename, group in combined_summary.groupby('Archivo'):
+            self.ax.plot(group['Fecha y hora inicio'], group['Isc'], marker='o', label=filename)
+
+        self.ax.set_xlabel('Fecha y hora inicio')
+        self.ax.set_ylabel('Isc')
+        self.ax.set_title('Isc en función del tiempo')
+        self.ax.grid(True)
+        self.ax.legend()
+        self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M:%S'))
+        self.fig.autofmt_xdate(rotation=30)
+        self.canvas.draw()
 
     def on_closing(self):
         plt.close('all')
