@@ -37,6 +37,8 @@ class IVCurveApp:
         self.current_folder = os.path.abspath("datos")
         self.excel_data = [] # Lista de dicts con info de cada excel
         self.summary_data = None
+        self.valid_files = set()
+        self.selected_files = set()
         
         self.default_i_unit = "μA"
         self.default_v_unit = "V"
@@ -84,18 +86,26 @@ class IVCurveApp:
         list_frame = ttk.LabelFrame(left_panel, text="Archivos Encontrados")
         list_frame.pack(fill=tk.BOTH, expand=True, pady=5)
         
-        # Treeview para la lista
-        columns = ("Estado", "Archivo", "Unidad I", "Unidad V")
-        self.tree = ttk.Treeview(list_frame, columns=columns, show="headings")
+        # Treeview para la lista con selección manual
+        columns = ("Sel", "Estado", "Archivo", "Unidad I", "Unidad V")
+        self.tree = ttk.Treeview(list_frame, columns=columns, show="headings", selectmode="none")
+        self.tree.heading("Sel", text="Sel")
         self.tree.heading("Estado", text="")
         self.tree.heading("Archivo", text="Archivo")
         self.tree.heading("Unidad I", text="I")
         self.tree.heading("Unidad V", text="V")
+        self.tree.column("Sel", width=40, anchor=tk.CENTER)
         self.tree.column("Estado", width=30, anchor=tk.CENTER)
         self.tree.column("Archivo", width=120)
         self.tree.column("Unidad I", width=50, anchor=tk.CENTER)
         self.tree.column("Unidad V", width=50, anchor=tk.CENTER)
         self.tree.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.tree.bind("<Button-1>", self.on_tree_click)
+
+        select_buttons = ttk.Frame(list_frame)
+        select_buttons.pack(fill=tk.X, padx=5, pady=(0,5))
+        self.btn_select_all = ttk.Button(select_buttons, text="Seleccionar todos", command=self.toggle_select_all, state=tk.DISABLED)
+        self.btn_select_all.pack(fill=tk.X)
         
         # Unidades a mostrar
         units_frame = ttk.LabelFrame(left_panel, text="Unidades del Gráfico")
@@ -199,6 +209,61 @@ class IVCurveApp:
             self.lbl_folder.config(text=self.current_folder)
             self.scan_folder(self.current_folder)
             
+    def refresh_selection_columns(self):
+        for item_id in self.tree.get_children():
+            values = list(self.tree.item(item_id, "values"))
+            filename = values[2]
+            if filename in self.valid_files:
+                values[0] = "✓" if filename in self.selected_files else ""
+            else:
+                values[0] = ""
+            self.tree.item(item_id, values=values)
+
+    def update_select_all_button(self):
+        if not self.valid_files:
+            self.btn_select_all.config(text="Seleccionar todos", state=tk.DISABLED)
+            return
+        if self.selected_files >= self.valid_files:
+            self.btn_select_all.config(text="Deseleccionar todos", state=tk.NORMAL)
+        else:
+            self.btn_select_all.config(text="Seleccionar todos", state=tk.NORMAL)
+
+    def update_generate_button_state(self):
+        if self.selected_files:
+            self.btn_generate.config(state=tk.NORMAL)
+        else:
+            self.btn_generate.config(state=tk.DISABLED)
+
+    def toggle_select_all(self):
+        if self.selected_files >= self.valid_files:
+            self.selected_files.clear()
+        else:
+            self.selected_files = set(self.valid_files)
+        self.refresh_selection_columns()
+        self.update_select_all_button()
+        self.update_generate_button_state()
+
+    def on_tree_click(self, event):
+        row_id = self.tree.identify_row(event.y)
+        col = self.tree.identify_column(event.x)
+        if not row_id:
+            return
+        if col != "#1":
+            return
+        values = list(self.tree.item(row_id, "values"))
+        if not values:
+            return
+        filename = values[2]
+        if filename not in self.valid_files:
+            return
+        if filename in self.selected_files:
+            self.selected_files.remove(filename)
+        else:
+            self.selected_files.add(filename)
+        self.refresh_selection_columns()
+        self.update_select_all_button()
+        self.update_generate_button_state()
+
     def get_unit_from_str(self, s, var_type):
         """Busca unidades en paréntesis ej: (mA), (V)."""
         match = re.search(r'\((.*?)\)', s)
@@ -308,24 +373,34 @@ class IVCurveApp:
                 if status in ["✅", "⚠️"] and summary_df is not None:
                     self.summary_data.append({"filename": file, "data": summary_df})
                 
-                self.tree.insert("", "end", values=(status, file, i_unit, v_unit))
+                self.tree.insert("", "end", values=("", status, file, i_unit, v_unit))
                 
             except Exception as e:
                 print(f"Error reading {file}: {e}")
-                self.tree.insert("", "end", values=("❌", file, "-", "-"))
+                self.tree.insert("", "end", values=("", "❌", file, "-", "-"))
                 invalid_count += 1
 
         self.lbl_summary.config(text=f"Total: {len(files)} | Válidos: {valid_count} | Inválidos: {invalid_count}")
-        
+
+        self.valid_files = {item['filename'] for item in self.excel_data if item['status'] in ['✅', '⚠️']}
+        self.selected_files.intersection_update(self.valid_files)
+        self.refresh_selection_columns()
+        self.update_select_all_button()
+        self.update_generate_button_state()
+
         if valid_count > 0:
-            self.btn_generate.config(state=tk.NORMAL)
             self.btn_export_excel.config(state=tk.NORMAL)
+            self.btn_select_all.config(state=tk.NORMAL)
         else:
-            self.btn_generate.config(state=tk.DISABLED)
             self.btn_export_excel.config(state=tk.DISABLED)
+            self.btn_select_all.config(state=tk.DISABLED)
 
     def generate_plot(self):
         # Generar IV (y preparar Isc) sólo cuando se pulsa el botón
+        if not self.selected_files:
+            messagebox.showwarning('Advertencia', 'Seleccione al menos un archivo valido para generar el gráfico.')
+            return
+
         self.needs_regen = False
         self.graph_generated_iv = True
 
@@ -367,41 +442,40 @@ class IVCurveApp:
         lines = []
         labels = []
         
-        for data in self.excel_data:
-            if data["status"] in ["✅", "⚠️"]:
-                try:
-                    df = pd.read_excel(data["path"], sheet_name="datos_IV", header=data["header_row"])
-                    # Convertimos al factor base (A o V) y luego a la unidad destino
-                    base_i_factor = UNIT_FACTORS["I"].get(data["i_unit"], 1.0)
-                    base_v_factor = UNIT_FACTORS["V"].get(data["v_unit"], 1.0)
+        selected_items = [item for item in self.excel_data if item['filename'] in self.selected_files and item['status'] in ['✅', '⚠️']]
+        for data in selected_items:
+            try:
+                df = pd.read_excel(data["path"], sheet_name="datos_IV", header=data["header_row"])
+                # Convertimos al factor base (A o V) y luego a la unidad destino
+                base_i_factor = UNIT_FACTORS["I"].get(data["i_unit"], 1.0)
+                base_v_factor = UNIT_FACTORS["V"].get(data["v_unit"], 1.0)
+                
+                target_i_factor = UNIT_FACTORS["I"][target_i_unit]
+                target_v_factor = UNIT_FACTORS["V"][target_v_unit]
+                
+                # Multiplicador = (Unidad origen a base) / (Base a unidad destino)
+                mult_i = base_i_factor / target_i_factor
+                mult_v = base_v_factor / target_v_factor
+                
+                i_vals = pd.to_numeric(df[data["i_col"]], errors='coerce').dropna() * mult_i
+                v_vals = pd.to_numeric(df[data["v_col"]], errors='coerce').dropna() * mult_v
+                
+                # Asegurarnos de que tengan la misma longitud
+                min_len = min(len(i_vals), len(v_vals))
+                i_vals = i_vals.iloc[:min_len]
+                v_vals = v_vals.iloc[:min_len]
+                
+                x_vals = v_vals if not swap else i_vals
+                y_vals = i_vals if not swap else v_vals
+                
+                line, = self.ax.plot(x_vals, y_vals, fmt, label=data["filename"])
+                lines.append(line)
                     
-                    target_i_factor = UNIT_FACTORS["I"][target_i_unit]
-                    target_v_factor = UNIT_FACTORS["V"][target_v_unit]
+                # Guardar info para el tooltip
+                labels.append(f"Archivo: {data['filename']}\nCol V: {data['v_col']}\nCol I: {data['i_col']}")
                     
-                    # Multiplicador = (Unidad origen a base) / (Base a unidad destino)
-                    mult_i = base_i_factor / target_i_factor
-                    mult_v = base_v_factor / target_v_factor
-                    
-                    i_vals = pd.to_numeric(df[data["i_col"]], errors='coerce').dropna() * mult_i
-                    v_vals = pd.to_numeric(df[data["v_col"]], errors='coerce').dropna() * mult_v
-                    
-                    # Asegurarnos de que tengan la misma longitud
-                    min_len = min(len(i_vals), len(v_vals))
-                    i_vals = i_vals.iloc[:min_len]
-                    v_vals = v_vals.iloc[:min_len]
-                    
-                    x_vals = v_vals if not swap else i_vals
-                    y_vals = i_vals if not swap else v_vals
-                    
-                    df = pd.read_excel(data["path"], sheet_name="datos_IV", header=data["header_row"])
-                    line, = self.ax.plot(x_vals, y_vals, fmt, label=data["filename"])
-                    lines.append(line)
-                    
-                    # Guardar info para el tooltip
-                    labels.append(f"Archivo: {data['filename']}\nCol V: {data['v_col']}\nCol I: {data['i_col']}")
-                    
-                except Exception as e:
-                    print(f"Error ploting {data['filename']}: {e}")
+            except Exception as e:
+                print(f"Error ploting {data['filename']}: {e}")
                     
         x_label = f"Voltaje ({target_v_unit})" if not swap else f"Intensidad ({target_i_unit})"
         y_label = f"Intensidad ({target_i_unit})" if not swap else f"Voltaje ({target_v_unit})"
@@ -559,9 +633,8 @@ class IVCurveApp:
         unique_voltages = []
         voltage_keys = []
 
-        for item in self.excel_data:
-            if item['status'] not in ['✅', '⚠️']:
-                continue
+        selected_items = [item for item in self.excel_data if item['filename'] in self.selected_files and item['status'] in ['✅', '⚠️']]
+        for item in selected_items:
             try:
                 df = pd.read_excel(item['path'], sheet_name='datos_IV', header=item['header_row'])
                 v_values = pd.to_numeric(df[item['v_col']], errors='coerce').dropna().reset_index(drop=True)
@@ -614,7 +687,7 @@ class IVCurveApp:
     def build_combined_summary(self):
         rows = []
         for item in self.excel_data:
-            if item['status'] not in ['✅', '⚠️']:
+            if item['filename'] not in self.selected_files or item['status'] not in ['✅', '⚠️']:
                 continue
             summary_df = item.get('summary_df')
             if summary_df is None or summary_df.empty:
