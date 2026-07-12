@@ -125,7 +125,11 @@ class IVCurveApp:
         
         # Botón Generar
         self.btn_generate = ttk.Button(left_panel, text="Generar Gráfico IV", command=self.generate_plot, state=tk.DISABLED)
-        self.btn_generate.pack(fill=tk.X, pady=10)
+        self.btn_generate.pack(fill=tk.X, pady=(10, 5))
+        
+        # Botón Exportar Excel Combinado
+        self.btn_export_excel = ttk.Button(left_panel, text="Exportar Excel combinado", command=self.export_combined_excel, state=tk.DISABLED)
+        self.btn_export_excel.pack(fill=tk.X, pady=(0, 10))
 
         # --- PANEL DERECHO (Gráfico y Controles de Gráfico) ---
         right_panel = ttk.Frame(main_frame)
@@ -175,7 +179,7 @@ class IVCurveApp:
         
         # Checkboxes Ejes
         self.var_swap_axes = tk.BooleanVar(value=False)
-        cb_swap = ttk.Checkbutton(plot_ctrl_frame, text="Intercambiar X/Y", variable=self.var_swap_axes, command=lambda: setattr(self, 'needs_regen', True))
+        cb_swap = ttk.Checkbutton(plot_ctrl_frame, text="Intercambiar X/Y", variable=self.var_swap_axes, command=lambda: self.generate_plot() if self.graph_generated_iv else None)
         cb_swap.grid(row=0, column=6, padx=10)
         
         self.var_invert_x = tk.BooleanVar(value=False)
@@ -191,16 +195,13 @@ class IVCurveApp:
         self.cb_line_style = ttk.Combobox(plot_ctrl_frame, values=["Línea continua (-)", "Línea rayada (--)", "Puntos (.)", "Puntos y línea (.-)"], width=15, state="readonly")
         self.cb_line_style.set("Línea continua (-)")
         self.cb_line_style.grid(row=0, column=8, padx=5, sticky=tk.W)
-        self.cb_line_style.bind("<<ComboboxSelected>>", lambda e: setattr(self, 'needs_regen', True))
+        self.cb_line_style.bind("<<ComboboxSelected>>", lambda e: self.generate_plot() if self.graph_generated_iv else None)
         
         # Exportar
         export_frame = ttk.Frame(plot_ctrl_frame)
         export_frame.grid(row=1, column=7, columnspan=2, rowspan=2, padx=20)
         btn_export = ttk.Button(export_frame, text="Exportar Gráfico", command=self.export_plot)
         btn_export.pack(side=tk.LEFT)
-        btn_export_excel = ttk.Button(export_frame, text="Exportar Excel combinado", command=self.export_combined_excel)
-        btn_export_excel.pack(side=tk.LEFT, padx=(10, 0))
-        self.btn_export_excel = btn_export_excel
 
     def browse_folder(self):
         folder = filedialog.askdirectory(initialdir=self.current_folder)
@@ -524,19 +525,15 @@ class IVCurveApp:
             
         xlim = self.ax.get_xlim()
         if self.var_invert_x.get():
-            if xlim[0] < xlim[1]:
-                self.ax.set_xlim(xlim[1], xlim[0])
+            self.ax.set_xlim(max(xlim), min(xlim))
         else:
-            if xlim[0] > xlim[1]:
-                self.ax.set_xlim(xlim[1], xlim[0])
+            self.ax.set_xlim(min(xlim), max(xlim))
                 
         ylim = self.ax.get_ylim()
         if self.var_invert_y.get():
-            if ylim[0] < ylim[1]:
-                self.ax.set_ylim(ylim[1], ylim[0])
+            self.ax.set_ylim(max(ylim), min(ylim))
         else:
-            if ylim[0] > ylim[1]:
-                self.ax.set_ylim(ylim[1], ylim[0])
+            self.ax.set_ylim(min(ylim), max(ylim))
                 
         self.canvas.draw()
         
@@ -611,11 +608,12 @@ class IVCurveApp:
         if fecha_col is None or isc_col is None:
             return None
 
-        result = pd.DataFrame({
-            'Fecha y hora inicio': pd.to_datetime(df[fecha_col], errors='coerce'),
-            'Isc': pd.to_numeric(df[isc_col], errors='coerce')
-        })
-        return result.dropna(subset=['Fecha y hora inicio', 'Isc'])
+        # Renombrar columnas para mantener compatibilidad interna con gráfico Isc
+        df.rename(columns={fecha_col: 'Fecha y hora inicio', isc_col: 'Isc'}, inplace=True)
+        # Convertir datos para Isc
+        df['Fecha y hora inicio'] = pd.to_datetime(df['Fecha y hora inicio'], errors='coerce')
+        df['Isc'] = pd.to_numeric(df['Isc'], errors='coerce')
+        return df.dropna(subset=['Fecha y hora inicio', 'Isc'])
 
     def same_voltage_series(self, s1, s2):
         if len(s1) != len(s2):
@@ -733,7 +731,12 @@ class IVCurveApp:
                     df_to_write.columns = new_cols
                 df_to_write.to_excel(writer, sheet_name='datos_IV', index=False)
                 if not combined_summary.empty:
-                    combined_summary[['Fecha y hora inicio', 'Isc']].to_excel(writer, sheet_name='resumen', index=False)
+                    # Exportar todas las columnas y mover 'Archivo' al inicio
+                    cols = combined_summary.columns.tolist()
+                    if 'Archivo' in cols:
+                        cols.insert(0, cols.pop(cols.index('Archivo')))
+                        combined_summary = combined_summary[cols]
+                    combined_summary.to_excel(writer, sheet_name='resumen', index=False)
             messagebox.showinfo('Éxito', f'Archivo exportado a:\n{save_path}')
         except Exception as e:
             messagebox.showerror('Error', f'No se pudo exportar el archivo:\n{e}')
@@ -881,6 +884,18 @@ class IVCurveApp:
         self.root.destroy()
 
 if __name__ == "__main__":
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        pass
+        
     root = tk.Tk()
+    
+    # Aumentar la fuente por defecto para que se vea mejor en todas partes
+    from tkinter import font
+    default_font = font.nametofont("TkDefaultFont")
+    default_font.configure(size=9)
+    
     app = IVCurveApp(root)
     root.mainloop()

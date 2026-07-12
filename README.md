@@ -12,7 +12,8 @@ Herramienta con interfaz gráfica en Python diseñada para buscar, leer y visual
   - Intercambio de variables en los ejes (X por Y).
   - Cambio de estilo de la curva (continua, rayada, puntos, o puntos con línea).
 - **Interactividad Intuitiva:** Información detallada mediante "hover". Al pasar el ratón por encima de una curva, se despliega una pequeña etiqueta que muestra a qué archivo pertenece, las columnas que usa y el valor exacto en el eje X e Y.
-- **Exportación:** Exporta la gráfica generada con un solo clic a formato `.png` (con autoincremento para no sobrescribir) o elige tú el nombre y la extensión.
+- **Exportación:** Exporta la gráfica generada con un solo clic a formato `.png` (con autoincremento para no sobrescribir) o elige tú el nombre y la extensión. También puedes exportar todos los datos procesados y combinados a un único archivo Excel, conservando todas las columnas de la hoja de resumen originales.
+- **Interfaz Adaptable:** La interfaz se escala automáticamente para aprovechar todo el tamaño de la pantalla, evitando problemas de visibilidad en resoluciones altas.
 
 ## Requisitos de Sistema e Instalación
 
