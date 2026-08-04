@@ -21,7 +21,11 @@ def export_combined_excel(combined_iv, combined_summary, current_folder):
     try:
         with pd.ExcelWriter(save_path, engine='openpyxl') as writer:
             df_to_write = combined_iv.copy()
-            df_to_write = df_to_write.rename(columns=lambda col: col if not isinstance(col, tuple) else f"{col[0]}_{col[1]}")
+            if isinstance(df_to_write.columns, pd.MultiIndex):
+                df_to_write.columns = [
+                    f"{a}_{b}" if not (isinstance(a, str) and isinstance(b, str)) else f"{a}_{b}"
+                    for a, b in df_to_write.columns
+                ]
             df_to_write.to_excel(writer, sheet_name='datos_IV', index=False)
             if not combined_summary.empty:
                 cols = combined_summary.columns.tolist()

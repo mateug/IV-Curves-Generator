@@ -43,6 +43,9 @@ python -m venv venv
 source venv/bin/activate   # Linux / macOS
 # o
 .\venv\Scripts\activate  # Windows
+# si PowerShell lo bloquea por política de ejecución:
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 

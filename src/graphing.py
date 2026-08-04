@@ -86,7 +86,14 @@ def build_combined_summary(excel_data, selected_files):
     if not rows:
         return pd.DataFrame(columns=['Archivo', 'Fecha y hora inicio', 'Isc'])
 
-    return pd.concat(rows, ignore_index=True)
+    combined = pd.concat(rows, ignore_index=True)
+    cols = list(combined.columns)
+    ordered_cols = []
+    for core in ['Archivo', 'Fecha y hora inicio', 'Isc']:
+        if core in cols:
+            ordered_cols.append(core)
+    ordered_cols.extend([c for c in cols if c not in ordered_cols])
+    return combined[ordered_cols]
 
 
 def flatten_multiindex_columns(df):
