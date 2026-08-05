@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
@@ -7,16 +8,17 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
-try:
-    from .excel_loader import UNIT_FACTORS, get_unit_from_str, prepare_iv_series, prepare_summary_dataframe, load_excel_file_info
-    from .graphing import build_combined_iv, build_combined_summary, build_style_map, prepare_isc_plot_data
-    from .ui import IVCurveUI
-    from .exporting import export_combined_excel
-except ImportError:  # Compatibilidad si se ejecuta como script
-    from excel_loader import UNIT_FACTORS, get_unit_from_str, prepare_iv_series, prepare_summary_dataframe, load_excel_file_info
-    from graphing import build_combined_iv, build_combined_summary, build_style_map, prepare_isc_plot_data
-    from ui import IVCurveUI
-    from exporting import export_combined_excel
+# Asegurar que la raíz del proyecto esté en sys.path cuando se ejecuta como script o exe.
+# Esto permite importar los módulos como paquete `src` desde `src/main.py`.
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from src.excel_loader import UNIT_FACTORS, get_unit_from_str, prepare_iv_series, prepare_summary_dataframe, load_excel_file_info
+from src.graphing import build_combined_iv, build_combined_summary, build_style_map, prepare_isc_plot_data
+from src.ui import IVCurveUI
+from src.exporting import export_combined_excel
 
 
 class IVCurveApp:
@@ -62,6 +64,7 @@ class IVCurveApp:
         self.btn_export_excel = self.ui.btn_export_excel
         self.notebook = self.ui.notebook
         self.iv_tab = self.ui.iv_tab
+        self.iv_log_tab = self.ui.iv_log_tab
         self.isc_tab = self.ui.isc_tab
         self.entry_xmin = self.ui.entry_xmin
         self.entry_xmax = self.ui.entry_xmax
@@ -224,9 +227,8 @@ class IVCurveApp:
             self.btn_export_excel.config(state=tk.DISABLED)
             self.btn_select_all.config(state=tk.DISABLED)
 
-    def generate_plot(self):
+    def generate_plot(self, log_scale=False):
         """Genera la gráfica IV a partir de los archivos seleccionados."""
-        # Generar IV (y preparar Isc) sólo cuando se pulsa el botón
         if not self.selected_files:
             messagebox.showwarning('Advertencia', 'Seleccione al menos un archivo valido para generar el gráfico.')
             return
@@ -280,8 +282,17 @@ class IVCurveApp:
                     target_v_unit=target_v_unit,
                     swap=swap,
                 )
-                
-                line, = self.ax.plot(x_vals, y_vals, fmt, label=data["filename"])
+
+                if log_scale:
+                    # Solo el eje Y será logarítmico. Se omiten los puntos con valor de Y no positivo.
+                    mask = y_vals > 0
+                    x_plot = x_vals[mask]
+                    y_plot = y_vals[mask]
+                else:
+                    x_plot = x_vals
+                    y_plot = y_vals
+
+                line, = self.ax.plot(x_plot, y_plot, fmt, label=data["filename"])
                 lines.append(line)
                     
                 # Guardar info para el tooltip
@@ -295,8 +306,10 @@ class IVCurveApp:
         
         self.ax.set_xlabel(x_label)
         self.ax.set_ylabel(y_label)
-        self.ax.set_title("Curvas IV")
+        self.ax.set_title("Curvas IV" + (" (log)" if log_scale else ""))
         self.ax.grid(True)
+        self.ax.set_xscale('linear')
+        self.ax.set_yscale('log' if log_scale else 'linear')
         
         # Configurar Tooltips manuales
         def hover(event):
@@ -379,7 +392,9 @@ class IVCurveApp:
         # Reinicia límites y regenera sólo si el gráfico correspondiente ya fue generado
         current = self.notebook.tab(self.notebook.select(), "text") if hasattr(self, 'notebook') else 'IV'
         if current == 'IV' and self.graph_generated_iv:
-            self.generate_plot()
+            self.generate_plot(log_scale=False)
+        elif current == 'IV log' and self.graph_generated_iv:
+            self.generate_plot(log_scale=True)
         elif current == 'Isc' and self.graph_generated_isc:
             self.generate_isc_plot()
         else:
@@ -417,9 +432,9 @@ class IVCurveApp:
     def export_plot(self):
         # Exporta el gráfico correspondiente a la pestaña activa con nombre por defecto
         current = self.notebook.tab(self.notebook.select(), "text") if hasattr(self, 'notebook') else 'IV'
-        default_name = 'grafico_iv.png' if current == 'IV' else 'grafico_isc.png'
+        default_name = 'grafico_iv.png' if current == 'IV' else 'grafico_iv_log.png' if current == 'IV log' else 'grafico_isc.png'
 
-        if current == 'IV' and not self.graph_generated_iv:
+        if current in ['IV', 'IV log'] and not self.graph_generated_iv:
             messagebox.showwarning('Advertencia', 'No hay gráfico IV generado para exportar.')
             return
         if current == 'Isc' and not self.graph_generated_isc:
@@ -440,6 +455,8 @@ class IVCurveApp:
             if current == 'Isc':
                 # regenerar la gráfica Isc en los ejes actuales
                 self.generate_isc_plot()
+            elif current == 'IV log':
+                self.generate_plot(log_scale=True)
             else:
                 self.generate_plot()
             self.fig.savefig(save_path, dpi=300, bbox_inches='tight')
@@ -450,7 +467,12 @@ class IVCurveApp:
     def on_tab_change(self):
         # Recrea el canvas en la pestaña activa y dibuja el gráfico correspondiente
         selected = self.notebook.tab(self.notebook.select(), "text")
-        parent = self.iv_tab if selected == 'IV' else self.isc_tab
+        if selected == 'IV':
+            parent = self.iv_tab
+        elif selected == 'IV log':
+            parent = self.iv_log_tab
+        else:
+            parent = self.isc_tab
 
         # destruir toolbar y canvas actuales y recrearlos bajo el nuevo padre
         try:
@@ -470,7 +492,14 @@ class IVCurveApp:
         # Mostrar gráfico sólo si fue generado con el botón
         if selected == 'IV':
             if self.graph_generated_iv:
-                self.generate_plot()
+                self.generate_plot(log_scale=False)
+            else:
+                self.ax.clear()
+                self.ax.set_title('Pulse "Generar Gráfico IV" para generar los gráficos')
+                self.canvas.draw()
+        elif selected == 'IV log':
+            if self.graph_generated_iv:
+                self.generate_plot(log_scale=True)
             else:
                 self.ax.clear()
                 self.ax.set_title('Pulse "Generar Gráfico IV" para generar los gráficos')

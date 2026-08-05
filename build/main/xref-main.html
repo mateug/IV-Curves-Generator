@@ -18,18 +18,7 @@
   <a target="code" href="//nas-direct.infra.tmrwsi.com/home/Desktop/Mateu.Gorris/Desktop/repos/IV-Curves-Generator/src/main.py" type="text/plain"><tt>main.py</tt></a>
 <span class="moduletype">Script</span>  <div class="import">
 imports:
-    <a href="#.excel_loader.UNIT_FACTORS">.excel_loader.UNIT_FACTORS</a>
- &#8226;   <a href="#.excel_loader.get_unit_from_str">.excel_loader.get_unit_from_str</a>
- &#8226;   <a href="#.excel_loader.load_excel_file_info">.excel_loader.load_excel_file_info</a>
- &#8226;   <a href="#.excel_loader.prepare_iv_series">.excel_loader.prepare_iv_series</a>
- &#8226;   <a href="#.excel_loader.prepare_summary_dataframe">.excel_loader.prepare_summary_dataframe</a>
- &#8226;   <a href="#.exporting.export_combined_excel">.exporting.export_combined_excel</a>
- &#8226;   <a href="#.graphing.build_combined_iv">.graphing.build_combined_iv</a>
- &#8226;   <a href="#.graphing.build_combined_summary">.graphing.build_combined_summary</a>
- &#8226;   <a href="#.graphing.build_style_map">.graphing.build_style_map</a>
- &#8226;   <a href="#.graphing.prepare_isc_plot_data">.graphing.prepare_isc_plot_data</a>
- &#8226;   <a href="#.ui.IVCurveUI">.ui.IVCurveUI</a>
- &#8226;   <a href="#_collections_abc">_collections_abc</a>
+    <a href="#_collections_abc">_collections_abc</a>
  &#8226;   <a href="#_weakrefset">_weakrefset</a>
  &#8226;   <a href="#abc">abc</a>
  &#8226;   <a href="#codecs">codecs</a>
@@ -159,11 +148,8 @@ imports:
  &#8226;   <a href="#encodings.uu_codec">encodings.uu_codec</a>
  &#8226;   <a href="#encodings.zlib_codec">encodings.zlib_codec</a>
  &#8226;   <a href="#enum">enum</a>
- &#8226;   <a href="#excel_loader">excel_loader</a>
- &#8226;   <a href="#exporting">exporting</a>
  &#8226;   <a href="#functools">functools</a>
  &#8226;   <a href="#genericpath">genericpath</a>
- &#8226;   <a href="#graphing">graphing</a>
  &#8226;   <a href="#heapq">heapq</a>
  &#8226;   <a href="#io">io</a>
  &#8226;   <a href="#keyword">keyword</a>
@@ -189,10 +175,15 @@ imports:
  &#8226;   <a href="#re._constants">re._constants</a>
  &#8226;   <a href="#re._parser">re._parser</a>
  &#8226;   <a href="#reprlib">reprlib</a>
+ &#8226;   <a href="#src.excel_loader">src.excel_loader</a>
+ &#8226;   <a href="#src.exporting">src.exporting</a>
+ &#8226;   <a href="#src.graphing">src.graphing</a>
+ &#8226;   <a href="#src.ui">src.ui</a>
  &#8226;   <a href="#sre_compile">sre_compile</a>
  &#8226;   <a href="#sre_constants">sre_constants</a>
  &#8226;   <a href="#sre_parse">sre_parse</a>
  &#8226;   <a href="#stat">stat</a>
+ &#8226;   <a href="#sys">sys</a>
  &#8226;   <a href="#tkinter">tkinter</a>
  &#8226;   <a href="#tkinter.filedialog">tkinter.filedialog</a>
  &#8226;   <a href="#tkinter.font">tkinter.font</a>
@@ -200,7 +191,6 @@ imports:
  &#8226;   <a href="#tkinter.ttk">tkinter.ttk</a>
  &#8226;   <a href="#traceback">traceback</a>
  &#8226;   <a href="#types">types</a>
- &#8226;   <a href="#ui">ui</a>
  &#8226;   <a href="#warnings">warnings</a>
  &#8226;   <a href="#weakref">weakref</a>
 
@@ -848,127 +838,6 @@ imported by:
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
     <a href="#matplotlib.backends.backend_webagg">matplotlib.backends.backend_webagg</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name=".excel_loader.UNIT_FACTORS"></a>
-  <a target="code" href="" type="text/plain"><tt>.excel_loader.UNIT_FACTORS</tt></a>
-<span class="moduletype">InvalidRelativeImport</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name=".excel_loader.get_unit_from_str"></a>
-  <a target="code" href="" type="text/plain"><tt>.excel_loader.get_unit_from_str</tt></a>
-<span class="moduletype">InvalidRelativeImport</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name=".excel_loader.load_excel_file_info"></a>
-  <a target="code" href="" type="text/plain"><tt>.excel_loader.load_excel_file_info</tt></a>
-<span class="moduletype">InvalidRelativeImport</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name=".excel_loader.prepare_iv_series"></a>
-  <a target="code" href="" type="text/plain"><tt>.excel_loader.prepare_iv_series</tt></a>
-<span class="moduletype">InvalidRelativeImport</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name=".excel_loader.prepare_summary_dataframe"></a>
-  <a target="code" href="" type="text/plain"><tt>.excel_loader.prepare_summary_dataframe</tt></a>
-<span class="moduletype">InvalidRelativeImport</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name=".exporting.export_combined_excel"></a>
-  <a target="code" href="" type="text/plain"><tt>.exporting.export_combined_excel</tt></a>
-<span class="moduletype">InvalidRelativeImport</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name=".graphing.build_combined_iv"></a>
-  <a target="code" href="" type="text/plain"><tt>.graphing.build_combined_iv</tt></a>
-<span class="moduletype">InvalidRelativeImport</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name=".graphing.build_combined_summary"></a>
-  <a target="code" href="" type="text/plain"><tt>.graphing.build_combined_summary</tt></a>
-<span class="moduletype">InvalidRelativeImport</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name=".graphing.build_style_map"></a>
-  <a target="code" href="" type="text/plain"><tt>.graphing.build_style_map</tt></a>
-<span class="moduletype">InvalidRelativeImport</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name=".graphing.prepare_isc_plot_data"></a>
-  <a target="code" href="" type="text/plain"><tt>.graphing.prepare_isc_plot_data</tt></a>
-<span class="moduletype">InvalidRelativeImport</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name=".ui.IVCurveUI"></a>
-  <a target="code" href="" type="text/plain"><tt>.ui.IVCurveUI</tt></a>
-<span class="moduletype">InvalidRelativeImport</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
 
   </div>
 
@@ -11018,28 +10887,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="excel_loader"></a>
-  <a target="code" href="" type="text/plain"><tt>excel_loader</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="exporting"></a>
-  <a target="code" href="" type="text/plain"><tt>exporting</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="fcntl"></a>
   <a target="code" href="" type="text/plain"><tt>fcntl</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
@@ -11600,17 +11447,6 @@ imported by:
     <a href="#pathlib._abc">pathlib._abc</a>
  &#8226;   <a href="#pathlib._local">pathlib._local</a>
  &#8226;   <a href="#pdb">pdb</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="graphing"></a>
-  <a target="code" href="" type="text/plain"><tt>graphing</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
 
   </div>
 
@@ -15139,6 +14975,7 @@ imported by:
     <a href="#main.py">main.py</a>
  &#8226;   <a href="#matplotlib.axes._axes">matplotlib.axes._axes</a>
  &#8226;   <a href="#pandas.plotting._matplotlib.converter">pandas.plotting._matplotlib.converter</a>
+ &#8226;   <a href="#src.graphing">src.graphing</a>
 
   </div>
 
@@ -29756,6 +29593,7 @@ imported by:
  &#8226;   <a href="#shutil">shutil</a>
  &#8226;   <a href="#socket">socket</a>
  &#8226;   <a href="#socketserver">socketserver</a>
+ &#8226;   <a href="#src.exporting">src.exporting</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#sysconfig">sysconfig</a>
@@ -30065,6 +29903,9 @@ imported by:
  &#8226;   <a href="#pandas.tseries.holiday">pandas.tseries.holiday</a>
  &#8226;   <a href="#pandas.util">pandas.util</a>
  &#8226;   <a href="#pandas.util._exceptions">pandas.util._exceptions</a>
+ &#8226;   <a href="#src.excel_loader">src.excel_loader</a>
+ &#8226;   <a href="#src.exporting">src.exporting</a>
+ &#8226;   <a href="#src.graphing">src.graphing</a>
 
   </div>
 
@@ -43866,6 +43707,7 @@ imported by:
  &#8226;   <a href="#re._parser">re._parser</a>
  &#8226;   <a href="#rlcompleter">rlcompleter</a>
  &#8226;   <a href="#shlex">shlex</a>
+ &#8226;   <a href="#src.excel_loader">src.excel_loader</a>
  &#8226;   <a href="#sre_compile">sre_compile</a>
  &#8226;   <a href="#sre_constants">sre_constants</a>
  &#8226;   <a href="#sre_parse">sre_parse</a>
@@ -44539,6 +44381,95 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="src"></a>
+  <a target="code" href="//nas-direct.infra.tmrwsi.com/home/Desktop/Mateu.Gorris/Desktop/repos/IV-Curves-Generator/src/__init__.py" type="text/plain"><tt>src</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
+imported by:
+    <a href="#src.excel_loader">src.excel_loader</a>
+ &#8226;   <a href="#src.exporting">src.exporting</a>
+ &#8226;   <a href="#src.graphing">src.graphing</a>
+ &#8226;   <a href="#src.ui">src.ui</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.excel_loader"></a>
+  <a target="code" href="//nas-direct.infra.tmrwsi.com/home/Desktop/Mateu.Gorris/Desktop/repos/IV-Curves-Generator/src/excel_loader.py" type="text/plain"><tt>src.excel_loader</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#pandas">pandas</a>
+ &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#src">src</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.exporting"></a>
+  <a target="code" href="//nas-direct.infra.tmrwsi.com/home/Desktop/Mateu.Gorris/Desktop/repos/IV-Curves-Generator/src/exporting.py" type="text/plain"><tt>src.exporting</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#os">os</a>
+ &#8226;   <a href="#pandas">pandas</a>
+ &#8226;   <a href="#src">src</a>
+ &#8226;   <a href="#tkinter">tkinter</a>
+ &#8226;   <a href="#tkinter.filedialog">tkinter.filedialog</a>
+ &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.graphing"></a>
+  <a target="code" href="//nas-direct.infra.tmrwsi.com/home/Desktop/Mateu.Gorris/Desktop/repos/IV-Curves-Generator/src/graphing.py" type="text/plain"><tt>src.graphing</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#matplotlib.dates">matplotlib.dates</a>
+ &#8226;   <a href="#pandas">pandas</a>
+ &#8226;   <a href="#src">src</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.ui"></a>
+  <a target="code" href="//nas-direct.infra.tmrwsi.com/home/Desktop/Mateu.Gorris/Desktop/repos/IV-Curves-Generator/src/ui.py" type="text/plain"><tt>src.ui</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#src">src</a>
+ &#8226;   <a href="#tkinter">tkinter</a>
+ &#8226;   <a href="#tkinter.ttk">tkinter.ttk</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="sre_compile"></a>
   <a target="code" href="///C:/Users/Mateu.Gorris/AppData/Local/Programs/Python/Python313/Lib/sre_compile.py" type="text/plain"><tt>sre_compile</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -44936,6 +44867,7 @@ imported by:
  &#8226;   <a href="#linecache">linecache</a>
  &#8226;   <a href="#locale">locale</a>
  &#8226;   <a href="#logging">logging</a>
+ &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#matplotlib">matplotlib</a>
  &#8226;   <a href="#matplotlib._api">matplotlib._api</a>
  &#8226;   <a href="#matplotlib.backend_bases">matplotlib.backend_bases</a>
@@ -45454,6 +45386,8 @@ imports:
 imported by:
     <a href="#main.py">main.py</a>
  &#8226;   <a href="#matplotlib.backends._backend_tk">matplotlib.backends._backend_tk</a>
+ &#8226;   <a href="#src.exporting">src.exporting</a>
+ &#8226;   <a href="#src.ui">src.ui</a>
  &#8226;   <a href="#tkinter.commondialog">tkinter.commondialog</a>
  &#8226;   <a href="#tkinter.constants">tkinter.constants</a>
  &#8226;   <a href="#tkinter.dialog">tkinter.dialog</a>
@@ -45535,6 +45469,7 @@ imports:
 imported by:
     <a href="#main.py">main.py</a>
  &#8226;   <a href="#matplotlib.backends._backend_tk">matplotlib.backends._backend_tk</a>
+ &#8226;   <a href="#src.exporting">src.exporting</a>
  &#8226;   <a href="#tkinter">tkinter</a>
 
   </div>
@@ -45572,6 +45507,7 @@ imports:
 imported by:
     <a href="#main.py">main.py</a>
  &#8226;   <a href="#matplotlib.backends._backend_tk">matplotlib.backends._backend_tk</a>
+ &#8226;   <a href="#src.exporting">src.exporting</a>
  &#8226;   <a href="#tkinter">tkinter</a>
  &#8226;   <a href="#tkinter.simpledialog">tkinter.simpledialog</a>
 
@@ -45608,6 +45544,7 @@ imports:
   <div class="import">
 imported by:
     <a href="#main.py">main.py</a>
+ &#8226;   <a href="#src.ui">src.ui</a>
  &#8226;   <a href="#tkinter">tkinter</a>
 
   </div>
@@ -46659,17 +46596,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#tzdata">tzdata</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="ui"></a>
-  <a target="code" href="" type="text/plain"><tt>ui</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
 
   </div>
 

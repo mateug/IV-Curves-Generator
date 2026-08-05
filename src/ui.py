@@ -81,8 +81,10 @@ class IVCurveUI:
 
         self.notebook = ttk.Notebook(right_panel)
         self.iv_tab = ttk.Frame(self.notebook)
+        self.iv_log_tab = ttk.Frame(self.notebook)
         self.isc_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.iv_tab, text="IV")
+        self.notebook.add(self.iv_log_tab, text="IV log")
         self.notebook.add(self.isc_tab, text="Isc")
         self.notebook.pack(fill=tk.BOTH, expand=True)
 

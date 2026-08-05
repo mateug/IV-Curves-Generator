@@ -26,6 +26,7 @@ La raíz del proyecto mantiene `run.bat` y `main.spec` para arranque y empaqueta
   - Inversión de ejes X/Y.
   - Intercambio de variables en los ejes.
   - Cambio de estilo de la curva (continua, rayada, puntos, puntos con línea).
+  - Nueva pestaña `IV log` para ver la curva IV con escala logarítmica en el eje Y.
 - **Interactividad Intuitiva:** Tooltip en hover sobre cada curva con información del archivo, columnas usadas y valores exactos.
 - **Exportación separada y dedicada:** Exporta datos combinados a un Excel con hojas `datos_IV` y `resumen` mediante el módulo `src/exporting.py`.
 - **Exportación de gráfico:** Guarda la gráfica generada como `.png`, `.pdf` u otros formatos compatibles.
