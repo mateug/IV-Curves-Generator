@@ -77,7 +77,52 @@ El ejecutable resultante se generará en la carpeta `dist/`.
 
 ### Actualizar el ejecutable tras cambios
 
-Cada vez que modifiques el código, vuelve a ejecutar PyInstaller con el mismo spec para regenerar el exe:
+Cada vez que modifiques el código, crea un main.spec y rellénalo con lo siguiente:
+
+```bash
+# -*- mode: python ; coding: utf-8 -*-
+
+import os
+
+
+a = Analysis(
+    ['src/main.py'],
+    pathex=[os.path.abspath('.')],
+    binaries=[],
+    datas=[],
+    hiddenimports=[],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+    optimize=0,
+)
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.datas,
+    [],
+    name='main',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=True,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+```
+
+Vuelve a ejecutar PyInstaller con el mismo spec para regenerar el exe:
 
 ```bash
 pyinstaller main.spec
