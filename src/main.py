@@ -129,6 +129,7 @@ class IVCurveApp:
         self.update_selection_state()
 
     def on_tree_click(self, event):
+        # Maneja la selección de archivos en la tabla que se van a graficar. Ctrl+Click permite seleccionar múltiples archivos.
         row_id = self.tree.identify_row(event.y)
         col = self.tree.identify_column(event.x)
         if not row_id:
@@ -142,16 +143,43 @@ class IVCurveApp:
         if filename not in self.valid_files:
             return
 
-        if event.state & 0x4:  # Ctrl
-            if filename in self.selected_files:
-                self.selected_files.remove(filename)
-            else:
+        if event.state & 0x1:  # Shift + Click --> 
+            # Selección de rango
+            all_valid_files = sorted(self.valid_files)
+            if not self.selected_files:
                 self.selected_files.add(filename)
-        else:
+            else:
+                last_selected = sorted(self.selected_files)[-1]
+                try:
+                    start_index = all_valid_files.index(last_selected)
+                    end_index = all_valid_files.index(filename)
+                    if start_index > end_index:
+                        start_index, end_index = end_index, start_index
+                    for f in all_valid_files[start_index:end_index + 1]:
+                        self.selected_files.add(f)
+                except ValueError:
+                    self.selected_files.add(filename)
+
+        # Opción A: Si solo se hace click solo se selecciona un único archivo
+            """
+        elif event.state & 0x4:  # Ctrl + Click --> Se mantienen los archivos anteriores seleccionados y se alterna el estado del archivo clickeado
+                    if filename in self.selected_files:
+                        self.selected_files.remove(filename)
+                    else:
+                        self.selected_files.add(filename)
+        else: # Click --> Se deseleccionan todos los archivos seleccionados y se selecciona al que se le ha hecho click
             if filename in self.selected_files and len(self.selected_files) == 1:
                 self.selected_files.clear()
             else:
                 self.selected_files = {filename}
+            """
+
+        # Opción B: No hace falta hacer Ctrl+Click para seleccionar varios archivos
+        else: # Click --> Se selecciona o deselecciona un nuevo archivo
+            if filename in self.selected_files:
+                self.selected_files.remove(filename)
+            else:
+                self.selected_files.add(filename)
 
         self.update_selection_state()
 
@@ -292,7 +320,7 @@ class IVCurveApp:
                     x_plot = x_vals
                     y_plot = y_vals
 
-                line, = self.ax.plot(x_plot, y_plot, fmt, label=data["filename"])
+                line, = self.ax.plot(x_plot, y_plot, fmt, label=data["filename"][:-5]) # Quito del label el ".xlsx"
                 lines.append(line)
                     
                 # Guardar info para el tooltip
@@ -310,6 +338,7 @@ class IVCurveApp:
         self.ax.grid(True)
         self.ax.set_xscale('linear')
         self.ax.set_yscale('log' if log_scale else 'linear')
+        self.ax.legend(loc="upper right", fontsize='small', framealpha=0.9)
         
         # Configurar Tooltips manuales
         def hover(event):
