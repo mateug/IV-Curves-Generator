@@ -18,11 +18,17 @@ class IVCurveUI:
         folder_frame = ttk.LabelFrame(left_panel, text="Carpeta de Datos")
         folder_frame.pack(fill=tk.X, pady=5)
 
-        self.lbl_folder = ttk.Label(folder_frame, text=self.app.current_folder, wraplength=250)
-        self.lbl_folder.pack(pady=5, padx=5)
+        self.lbl_folders = ttk.Label(
+            folder_frame,
+            text="Carpetas cargadas: 0",
+            wraplength=250,
+            justify=tk.LEFT
+        )
+        self.lbl_folders.pack(pady=(5, 5), padx=5)
 
         ttk.Button(folder_frame, text="Seleccionar Carpeta", command=self.app.browse_folder).pack(pady=5)
-        ttk.Button(folder_frame, text="Actualizar / Escanear", command=lambda: self.app.scan_folder(self.app.current_folder)).pack(pady=5)
+        ttk.Button(folder_frame, text="Añadir Carpeta", command=self.app.add_folder).pack(pady=5)
+        ttk.Button(folder_frame, text="Actualizar / Escanear", command=self.app.rescan_loaded_folders).pack(pady=5)
 
         self.lbl_summary = ttk.Label(left_panel, text="Buscando...")
         self.lbl_summary.pack(pady=(5, 2))

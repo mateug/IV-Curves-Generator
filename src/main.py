@@ -29,6 +29,7 @@ class IVCurveApp:
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         self.current_folder = os.path.abspath("datos")
+        self.loaded_folders = []
         self.excel_data = []
         self.summary_data = None
         self.valid_files = set()
@@ -53,7 +54,7 @@ class IVCurveApp:
 
     def setup_ui(self):
         self.ui = IVCurveUI(self.root, self)
-        self.lbl_folder = self.ui.lbl_folder
+        self.lbl_folders = self.ui.lbl_folders
         self.lbl_summary = self.ui.lbl_summary
         self.progress_bar = self.ui.progress_bar
         self.tree = self.ui.tree
@@ -83,13 +84,19 @@ class IVCurveApp:
         self.toolbar.update()
 
     def browse_folder(self):
-        """Abre el selector de carpeta y reescanea su contenido."""
+        """Selecciona una nueva carpeta y reemplaza los datos cargados."""
         folder = filedialog.askdirectory(initialdir=self.current_folder)
         if folder:
             self.current_folder = folder
-            self.lbl_folder.config(text=self.current_folder)
             self.scan_folder(self.current_folder)
-            
+
+    def add_folder(self):
+        """Añade los archivos Excel de una carpeta sin eliminar los ya cargados."""
+        folder = filedialog.askdirectory(initialdir=self.current_folder)
+        if not folder:
+            return
+        self.scan_folder(folder, reset=False)
+
     def refresh_selection_columns(self):
         for item_id in self.tree.get_children():
             values = list(self.tree.item(item_id, "values"))
@@ -120,6 +127,19 @@ class IVCurveApp:
             self.btn_generate.config(state=tk.NORMAL)
         else:
             self.btn_generate.config(state=tk.DISABLED)
+
+    def update_loaded_folders_label(self):
+        if not self.loaded_folders:
+            self.lbl_folders.config(text="Carpetas cargadas: 0")
+            return
+
+        text = f"Carpetas cargadas ({len(self.loaded_folders)}):\n"
+        text += "\n".join(
+            f"• {os.path.basename(os.path.normpath(folder))}"
+            for folder in self.loaded_folders
+        )
+
+        self.lbl_folders.config(text=text)
 
     def toggle_select_all(self):
         if self.selected_files >= self.valid_files:
@@ -193,11 +213,21 @@ class IVCurveApp:
             if item['filename'] in self.selected_files and item['status'] in ['✅', '⚠️']
         ]
 
-    def scan_folder(self, folder):
+    def scan_folder(self, folder, reset=True):
         """Escanea una carpeta y carga la información de los archivos Excel detectados."""
-        self.excel_data = []
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        if reset:
+            self.excel_data = []
+            self.valid_files = set()
+            self.selected_files.clear()
+            self.loaded_folders = []
+
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+
+        if folder not in self.loaded_folders:
+            self.loaded_folders.append(folder)
+
+        self.update_loaded_folders_label()
 
         if not os.path.exists(folder):
             self.lbl_summary.config(text="Carpeta no encontrada.")
@@ -209,16 +239,29 @@ class IVCurveApp:
 
         valid_count = 0
         invalid_count = 0
-        self.summary_data = []
+        if reset:
+            self.summary_data = []
 
         self.progress_bar.config(maximum=max(total_files, 1), value=0)
         self.lbl_summary.config(text=f"Escaneando {total_files} archivos...")
         self.root.update_idletasks()
 
+        existing_files = {item["filename"] for item in self.excel_data}
         for index, file_name in enumerate(files, start=1):
             path = os.path.join(folder, file_name)
             try:
+                if file_name in existing_files:
+                    messagebox.showerror(
+                        "Archivo duplicado",
+                        f"El nombre '{file_name}' ya ha sido usado en otra carpeta.\n"
+                        "Cámbiale el nombre antes de añadir la carpeta."
+                    )
+                    continue
+
+                path = os.path.join(folder, file_name)
                 info = load_excel_file_info(path, file_name)
+                existing_files.add(file_name)
+
                 status = info["status"]
                 summary_df = info["summary_df"]
 
@@ -242,18 +285,38 @@ class IVCurveApp:
                 invalid_count += 1
 
         self.progress_bar.config(value=total_files)
-        self.lbl_summary.config(text=f"Total: {total_files} | Válidos: {valid_count} | Inválidos: {invalid_count}")
-
         self.valid_files = {item['filename'] for item in self.excel_data if item['status'] in ['✅', '⚠️']}
+
         self.selected_files.intersection_update(self.valid_files)
         self.update_selection_state()
 
-        if valid_count > 0:
+        total_loaded = len(self.excel_data)
+        total_valid = len(self.valid_files)
+        total_invalid = total_loaded - total_valid
+
+        self.lbl_summary.config(text=f"Total: {total_loaded} | Válidos: {total_valid} | Inválidos: {total_invalid}")
+
+        if self.valid_files:
             self.btn_export_excel.config(state=tk.NORMAL)
             self.btn_select_all.config(state=tk.NORMAL)
         else:
             self.btn_export_excel.config(state=tk.DISABLED)
             self.btn_select_all.config(state=tk.DISABLED)
+
+    def rescan_loaded_folders(self):
+        folders = list(self.loaded_folders)
+
+        self.excel_data = []
+        self.valid_files.clear()
+        self.selected_files.clear()
+
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        self.loaded_folders = []
+
+        for folder in folders:
+            self.scan_folder(folder, reset=False)
 
     def generate_plot(self, log_scale=False):
         """Genera la gráfica IV a partir de los archivos seleccionados."""
